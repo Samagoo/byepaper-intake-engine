@@ -1,0 +1,74 @@
+#Este archivo levanta toda la infraestructura necesaria para correr la aplicación 
+#con un sólo comando: docker-compose up -build. 
+services:
+  # API (FastAPI)
+  api:
+    build:
+      context: ./backend
+    container_name: byepaper-api
+    #Carga las variables de entorno del archivo .env
+    env_file:
+      - .env
+    #Sobreescribe el comando del Dockerfile para agregar reload
+    #Esto reinicia el servidor automáticamente cuando se guardan cambios en el código   
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      #Sincroniza el código de la carpeta app del host con la carpeta app del contenedor
+      - ./backend/app:/app/app
+      #Volumen compartido de almacenamiento. Aqui se guardan los archivos subidos
+      - ./data/storage:/data/storage
+    ports:
+      - "8000:8000"
+    #Especifica que el servicio api depende de db y redis
+    depends_on:
+      - db
+      - redis
+
+  #Worker (RQ)
+  worker:
+    build:
+      context: ./backend
+    container_name: byepaper-worker
+    env_file:
+      - .env
+    #El worker arranca escuchando la cola de tareas configuradas
+    command: python -m app.workers.main
+    volumes:
+      #El worker necesita el mismo código para entender los modelos y funciones
+      - ./backend/app:/app/app
+      #El worker necesita acceso a los mismos archivos que subió la API
+      - ./data/storage:/data/storage
+    depends_on:
+      - db
+      - redis
+
+  # Base de datos (PostgreSQL)
+  db:
+    #Usa la version alpine de PostgreSQL 16 para un contenedor más liviano
+    image: postgres:16-alpine
+    container_name: byepaper-db
+    environment:
+      #Estas credenciales deben coinicidir con la DATABASE_URL en el archivo .env
+      POSTGRES_USER: byepaper
+      POSTGRES_PASSWORD: byepaper
+      POSTGRES_DB: byepaper
+    ports:
+      - "5432:5432"
+    volumes:
+      #Persistencia: Si se apafa el Docker, los datos no se borran 
+      - postgres_data:/var/lib/postgresql/data
+
+  # Broker de mensajes (Redis)
+  redis:
+    image: redis:7-alpine
+    container_name: byepaper-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      #Persistencia en la cola por si el contenedor se apaga, los datos no se pierden
+      - redis_data:/data
+
+#Administrados por el Docker para la persistencia
+volumes:
+  postgres_data:
+  redis_data:

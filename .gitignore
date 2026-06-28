@@ -1,0 +1,25 @@
+#Contiene contraseñas, claves de API y otras credenciales sensibles. 
+.env
+#Entorno vitual de Python. Contiene dependencias y paquetes instalados.
+.venv/
+#Archivos compilados de Python y caché de pruebas.
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+#Carpetas donde Docker Compose guardará la información persistente
+#y donde el LocalStorage guardará los documentos subidos por los usuarios.
+data/
+postgres_data/
+redis_data/
+
+#Dependencias de Node.js y archivos de construcción.
+node_modules/
+dist/
+build/
+
+#Archivos de configuración de IDEs y editores de código.
+.DS_Store
+.vscode/
