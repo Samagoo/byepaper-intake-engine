@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routers import health
+from app.api.routers import organizations
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.request_id import RequestIdMiddleware
@@ -33,6 +34,11 @@ app.add_middleware(
 
 #Inclusión de los routers definidos para la segmentación de la API
 app.include_router(health.router)
+# Endpoints de negocio versionados.
+app.include_router(
+    organizations.router,
+    prefix=settings.API_V1_PREFIX,
+)
 
 
 @app.get("/", tags=["root"])
