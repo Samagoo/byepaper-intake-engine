@@ -1,10 +1,16 @@
+from collections.abc import Generator
+
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session
 
 from app.core.config import get_settings
 
 #Obtener la configuración global cargada desde el .env
 settings = get_settings()
+
+#Clase base de SQLAlchemy. Todos los modelos ORM heredarán esta clase para que pueda detectar sus tablas
+class Base(DeclarativeBase):
+    pass
 
 #Encargado de administrar el pool de conexiones hacia PostgreSQL. 
 engine = create_engine(
@@ -25,6 +31,18 @@ SessionLocal = sessionmaker(
     future=True,
 )
 
+def get_db() -> Generator[Session, None, None]:
+    """
+    Crea una sesión de base de datos por request. 
+    FastAPI usará esta función como dependencia. Al terminar el request, la sesión 
+    se cierra automáticamente. 
+    """
+    db = SessionLocal()
+
+    try:
+        yield db
+    finally:
+        db.close()
 
 def check_database_connection() -> bool:
     """ 
