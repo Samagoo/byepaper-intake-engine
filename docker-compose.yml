@@ -17,6 +17,9 @@ services:
       - ./backend/app:/app/app
       #Volumen compartido de almacenamiento. Aqui se guardan los archivos subidos
       - ./data/storage:/data/storage
+      # Montar la carpeta alembic local dentro del contenedor
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
     ports:
       - "8000:8000"
     #Especifica que el servicio api depende de db y redis
