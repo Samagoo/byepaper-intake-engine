@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173"
     LOG_LEVEL: str = "INFO"
 
+    # Secreto usado para generar hashes HMAC de API keys.
+    API_KEY_HASH_SECRET: str = "change-this-secret-in-production"
+
     @property
     def allowed_mime_types(self) -> set[str]:
         """
@@ -57,6 +60,8 @@ class Settings(BaseSettings):
             for origin in self.CORS_ORIGINS.split(",")
             if origin.strip()
         ]
+    
+    
 
 
 @lru_cache
