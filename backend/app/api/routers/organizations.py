@@ -17,11 +17,28 @@ from app.services.api_key_service import (
     OrganizationNotFoundError,
 )
 
+from app.core.security import get_current_organization
+from app.models import Organization
+
 router = APIRouter(
     prefix="/organizations",
     tags=["organizations"],
 )
 
+@router.get(
+    "/me",
+    response_model=OrganizationRead,
+)
+def get_my_organization(
+    current_organization: Organization = Depends(get_current_organization),
+):
+    """
+    Devuelve la organización asociada a la API key enviada.
+
+    Este endpoint prueba la autenticación multi-tenant.
+    El cliente no manda organization_id; el backend lo obtiene desde la API key.
+    """
+    return current_organization
 
 @router.post(
     "",
