@@ -4,12 +4,16 @@ from sqlalchemy.orm import Session
 
 from app.models import Organization
 from app.models.enums import ActorType, DocumentType, DocumentStatus
+
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.event_log_repository import EventLogRepository
 from app.repositories.extracted_field_repository import ExtractedFieldRepository
 from app.repositories.validation_error_repository import ValidationErrorRepository
 from app.repositories.validation_rule_repository import ValidationRuleRepository
+
 from app.schemas.document import DocumentFieldsUpdate
+
+from app.adapters.queue.document_queue import DocumentQueue
 
 
 class DocumentNotFoundForReviewError(Exception):
@@ -26,6 +30,11 @@ class DocumentInvalidStateForReviewError(Exception):
 class DocumentApprovalBlockedError(Exception):
     """
     Se lanza cuando faltan campos requeridos y no se puede aprobar.
+    """
+
+class DocumentRetryInvalidStateError(Exception):
+    """
+    Se lanza cuando se intenta reintentar un documento que no esta failed.
     """
 
 class DocumentReviewService:
@@ -55,6 +64,7 @@ class DocumentReviewService:
         self.validation_error_repository = ValidationErrorRepository(db)
         self.validation_rule_repository = ValidationRuleRepository(db)
         self.event_log_repository = EventLogRepository(db)
+        self.document_queue = DocumentQueue()
 
     def update_fields(
         self,
@@ -294,6 +304,62 @@ class DocumentReviewService:
                 "document_id": str(document.id),
                 "status": document.status.value,
                 "reason": reason,
+            }
+
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def retry_document(
+        self,
+        *,
+        current_organization: Organization,
+        document_id: uuid.UUID,
+        reviewer_id: str | None,
+    ):
+        """
+        Reintenta el procesamiento de un documento fallido.
+
+        Solo documentos en failed pueden regresar a queued.
+        """
+        document = self.document_repository.get_by_id_for_organization(
+            document_id=document_id,
+            organization_id=current_organization.id,
+        )
+
+        if document is None:
+            raise DocumentNotFoundForReviewError("Document not found")
+
+        if document.status != DocumentStatus.FAILED:
+            raise DocumentRetryInvalidStateError(
+                "Only failed documents can be retried"
+            )
+
+        try:
+            self.document_repository.update_status(
+                document=document,
+                status=DocumentStatus.QUEUED,
+            )
+
+            self.event_log_repository.create(
+                organization_id=current_organization.id,
+                entity_type="document",
+                entity_id=document.id,
+                event_type="retry_requested",
+                actor_type=ActorType.REVIEWER,
+                actor_id=reviewer_id,
+                payload={},
+            )
+
+            self.db.commit()
+
+            self.document_queue.enqueue_document_processing(
+                document_id=document.id,
+            )
+
+            return {
+                "document_id": str(document.id),
+                "status": document.status.value,
             }
 
         except Exception:

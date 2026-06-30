@@ -23,6 +23,7 @@ from app.services.document_review_service import (
     DocumentReviewService,
     DocumentApprovalBlockedError,
     DocumentInvalidStateForReviewError,
+    DocumentRetryInvalidStateError, 
 )
 
 router = APIRouter(
@@ -210,6 +211,39 @@ def reject_document(
         ) from exc
 
     except DocumentInvalidStateForReviewError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+    
+@router.post(
+    "/{document_id}/retry",
+)
+def retry_document(
+    document_id: uuid.UUID,
+    payload: DocumentDecisionRequest,
+    current_organization: Organization = Depends(get_current_organization),
+    db: Session = Depends(get_db),
+):
+    """
+    Reintenta procesamiento de documentos failed.
+    """
+    service = DocumentReviewService(db)
+
+    try:
+        return service.retry_document(
+            current_organization=current_organization,
+            document_id=document_id,
+            reviewer_id=payload.reviewer_id,
+        )
+
+    except DocumentNotFoundForReviewError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    except DocumentRetryInvalidStateError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
