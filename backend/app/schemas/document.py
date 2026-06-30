@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import (
     ActorType,
@@ -122,3 +122,17 @@ class DocumentListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+class DocumentFieldsUpdate(BaseModel):
+    """
+    Payload para corregir campos extraidos durante revision humana.
+
+    fields es un diccionario flexible:
+    {
+        "vendor": "ACME",
+        "total": "8500"
+    }
+    """
+
+    fields: dict[str, str] = Field(default_factory=dict)
+    reviewer_id: str | None = "reviewer-demo"

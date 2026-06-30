@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime, timezone
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models import ExtractedField
@@ -84,3 +85,53 @@ class ExtractedFieldRepository:
         )
 
         return list(self.db.execute(statement).scalars().all())
+    
+    def upsert_human_fields(
+        self,
+        *,
+        document_id: uuid.UUID,
+        fields: dict[str, str],
+        reviewer_id: str | None,
+    ) -> list[ExtractedField]:
+        """
+        Crea o actualiza campos corregidos por un humano.
+
+        Si el campo ya existe, se actualiza.
+        Si no existe, se crea.
+        """
+        updated_fields: list[ExtractedField] = []
+
+        for key_field, value in fields.items():
+            statement = select(ExtractedField).where(
+                ExtractedField.document_id == document_id,
+                ExtractedField.key_field == key_field,
+            )
+
+            field = self.db.execute(statement).scalar_one_or_none()
+
+            if field is None:
+                field = ExtractedField(
+                    document_id=document_id,
+                    key_field=key_field,
+                    value=value,
+                    confidence_score=1.0,
+                    source=FieldSource.HUMAN,
+                    corrected_by=reviewer_id,
+                    corrected_at=datetime.now(timezone.utc),
+                )
+                self.db.add(field)
+            else:
+                field.value = value
+                field.confidence_score = 1.0
+                field.source = FieldSource.HUMAN
+                field.corrected_by = reviewer_id
+                field.corrected_at = datetime.now(timezone.utc)
+
+            updated_fields.append(field)
+
+        self.db.flush()
+
+        for field in updated_fields:
+            self.db.refresh(field)
+
+        return updated_fields

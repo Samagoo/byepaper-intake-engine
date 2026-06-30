@@ -11,10 +11,15 @@ from app.schemas.document import (
     DocumentDetailRead,
     DocumentListResponse,
     EventLogRead,
+    DocumentFieldsUpdate,
 )
 from app.services.document_query_service import (
     DocumentNotFoundError,
     DocumentQueryService,
+)
+from app.services.document_review_service import (
+    DocumentNotFoundForReviewError,
+    DocumentReviewService,
 )
 
 router = APIRouter(
@@ -101,6 +106,33 @@ def list_document_events(
         )
 
     except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    
+@router.patch(
+    "/{document_id}/fields",
+)
+def update_document_fields(
+    document_id: uuid.UUID,
+    payload: DocumentFieldsUpdate,
+    current_organization: Organization = Depends(get_current_organization),
+    db: Session = Depends(get_db),
+):
+    """
+    Corrige campos extraidos y vuelve a validar el documento.
+    """
+    service = DocumentReviewService(db)
+
+    try:
+        return service.update_fields(
+            current_organization=current_organization,
+            document_id=document_id,
+            data=payload,
+        )
+
+    except DocumentNotFoundForReviewError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
