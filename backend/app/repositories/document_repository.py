@@ -77,3 +77,22 @@ class DocumentRepository:
         )
 
         return self.db.execute(statement).scalar_one_or_none()
+    
+    def update_status(
+        self,
+        *,
+        document: Document,
+        status: DocumentStatus,
+    ) -> Document:
+        """
+        Actualiza el estado actual del documento.
+
+        El repository solo modifica el dato. La decisión de cuándo cambiar
+        de estado pertenece al service o al worker.
+        """
+        document.status = status
+
+        self.db.flush()
+        self.db.refresh(document)
+
+        return document

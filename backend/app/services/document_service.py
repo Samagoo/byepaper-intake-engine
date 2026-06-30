@@ -15,6 +15,9 @@ from app.repositories.document_repository import DocumentRepository
 from app.repositories.idempotency_repository import IdempotencyRepository
 from app.schemas.document import DocumentRead
 
+from app.adapters.queue.document_queue import DocumentQueue
+from app.models.enums import DocumentStatus
+
 
 class BatchNotFoundForUploadError(Exception):
     """Se lanza cuando el batch no existe o no pertenece a la organización."""
@@ -62,6 +65,7 @@ class DocumentService:
         self.document_repository = DocumentRepository(db)
         self.idempotency_repository = IdempotencyRepository(db)
         self.storage_adapter = LocalStorageAdapter()
+        self.document_queue = DocumentQueue()
 
     async def upload_document(
         self,
@@ -166,6 +170,11 @@ class DocumentService:
                 duplicate_of_document_id=duplicate_of_document_id,
             )
 
+            document = self.document_repository.update_status(
+                document=document,
+                status=DocumentStatus.QUEUED,
+            )
+
             response_snapshot = jsonable_encoder(
                 DocumentRead.model_validate(document)
             )
@@ -179,6 +188,10 @@ class DocumentService:
                 )
 
             self.db.commit()
+
+            self.document_queue.enqueue_document_processing(
+                document_id=document.id,
+            )
 
             return response_snapshot
 
