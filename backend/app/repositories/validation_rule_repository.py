@@ -33,3 +33,36 @@ class ValidationRuleRepository:
         )
 
         return self.db.execute(statement).scalar_one_or_none()
+    
+    def upsert(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        document_type: DocumentType,
+        required_fields: list[str],
+    ) -> ValidationRule:
+        """
+        Crea o actualiza una regla de validacion.
+
+        Si ya existe una regla para organization_id + document_type,
+        solo actualiza required_fields.
+        """
+        rule = self.get_for_organization_and_type(
+            organization_id=organization_id,
+            document_type=document_type,
+        )
+
+        if rule is None:
+            rule = ValidationRule(
+                organization_id=organization_id,
+                document_type=document_type,
+                required_fields=required_fields,
+            )
+            self.db.add(rule)
+        else:
+            rule.required_fields = required_fields
+
+        self.db.flush()
+        self.db.refresh(rule)
+
+        return rule
