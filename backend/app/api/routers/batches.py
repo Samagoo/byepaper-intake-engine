@@ -15,6 +15,9 @@ from app.schemas.document import DocumentRead
 from app.services.document_service import (
     BatchNotFoundForUploadError,
     DocumentService,
+    DuplicateDocumentError,
+    FileTooLargeError,
+    InvalidFileTypeError,
 )
 
 router = APIRouter(
@@ -140,8 +143,25 @@ async def upload_document_to_batch(
         )
 
     except BatchNotFoundForUploadError as exc:
-        # Transformación de error de negocio a respuesta HTTP semántica
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    except InvalidFileTypeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=str(exc),
+        ) from exc
+
+    except FileTooLargeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=str(exc),
+        ) from exc
+
+    except DuplicateDocumentError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         ) from exc
