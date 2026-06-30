@@ -8,6 +8,8 @@ import type {
   DocumentDetail,
   DocumentEvent,
   DocumentReviewResponse,
+  ApiKeyCreateResponse,
+  Organization,
 } from "../types/api";
 
 const API_BASE_URL =
@@ -28,6 +30,32 @@ async function apiRequest<T>(
     headers: {
       "Content-Type": "application/json",
       "X-API-Key": apiKey,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || `Request failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function publicApiRequest<T>(
+  path: string,
+  {
+    method = "GET",
+    body,
+  }: {
+    method?: string;
+    body?: unknown;
+  } = {},
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -183,4 +211,24 @@ export function retryDocument(
       reviewer_id: reviewerId,
     },
   });
+}
+
+export function createOrganization(payload: {
+  name: string;
+  slug: string;
+  status: "active" | "inactive";
+}) {
+  return publicApiRequest<Organization>("/organizations", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function createOrganizationApiKey(organizationId: string) {
+  return publicApiRequest<ApiKeyCreateResponse>(
+    `/organizations/${organizationId}/api-keys`,
+    {
+      method: "POST",
+    },
+  );
 }
