@@ -1,0 +1,298 @@
+{
+  "info": {
+    "name": "ByePaper Intake Engine",
+    "description": "Colección local para probar el flujo principal de ByePaper: organizaciones, API keys, batches, documentos, métricas y revisión humana.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "Readiness check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/ready"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Organizations and API Keys",
+      "item": [
+        {
+          "name": "Create organization",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.environment.set('organization_id', body.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Demo Org\",\n  \"slug\": \"postman-demo-org-{{$timestamp}}\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{api_base_url}}/organizations"
+          }
+        },
+        {
+          "name": "Create API key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.environment.set('api_key', body.api_key);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{api_base_url}}/organizations/{{organization_id}}/api-keys"
+          }
+        },
+        {
+          "name": "Get current organization",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "url": "{{api_base_url}}/organizations/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Batches",
+      "item": [
+        {
+          "name": "Create batch",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.environment.set('batch_id', body.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Batch\",\n  \"source\": \"postman\",\n  \"metadata\": {\n    \"notes\": \"Batch creado desde Postman\"\n  }\n}"
+            },
+            "url": "{{api_base_url}}/batches"
+          }
+        },
+        {
+          "name": "List batches",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "url": "{{api_base_url}}/batches"
+          }
+        },
+        {
+          "name": "Get batch",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "url": "{{api_base_url}}/batches/{{batch_id}}"
+          }
+        },
+        {
+          "name": "Get batch progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "url": "{{api_base_url}}/batches/{{batch_id}}/progress"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "item": [
+        {
+          "name": "Upload document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.environment.set('document_id', body.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" },
+              { "key": "Idempotency-Key", "value": "{{idempotency_key}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "source_reference",
+                  "value": "postman-upload",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{api_base_url}}/batches/{{batch_id}}/documents"
+          }
+        },
+        {
+          "name": "List documents",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "url": "{{api_base_url}}/documents"
+          }
+        },
+        {
+          "name": "Get document detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "url": "{{api_base_url}}/documents/{{document_id}}"
+          }
+        },
+        {
+          "name": "Get document events",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "url": "{{api_base_url}}/documents/{{document_id}}/events"
+          }
+        },
+        {
+          "name": "Update document fields",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fields\": {\n    \"vendor\": \"ACME SA de CV\",\n    \"total\": \"1234\",\n    \"currency\": \"MXN\",\n    \"document_date\": \"2026-06-30\"\n  },\n  \"reviewer_id\": \"{{reviewer_id}}\"\n}"
+            },
+            "url": "{{api_base_url}}/documents/{{document_id}}/fields"
+          }
+        },
+        {
+          "name": "Approve document",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewer_id\": \"{{reviewer_id}}\"\n}"
+            },
+            "url": "{{api_base_url}}/documents/{{document_id}}/approve"
+          }
+        },
+        {
+          "name": "Reject document",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewer_id\": \"{{reviewer_id}}\",\n  \"reason\": \"Documento rechazado desde Postman\"\n}"
+            },
+            "url": "{{api_base_url}}/documents/{{document_id}}/reject"
+          }
+        },
+        {
+          "name": "Retry document",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewer_id\": \"{{reviewer_id}}\"\n}"
+            },
+            "url": "{{api_base_url}}/documents/{{document_id}}/retry"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Metrics",
+      "item": [
+        {
+          "name": "Get operational metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "url": "{{api_base_url}}/metrics"
+          }
+        }
+      ]
+    }
+  ]
+}
