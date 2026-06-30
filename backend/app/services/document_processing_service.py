@@ -165,12 +165,40 @@ class DocumentProcessingService:
                     payload={},
                 )
 
-            # En este challenge dejamos todo documento procesado en revision
-            # humana. Aprobar/rechazar vendra en la siguiente fase.
+            final_status = self._decide_final_status(
+                confidence_score=confidence_score,
+                missing_fields=missing_fields,
+            )
+
             self.document_repository.update_status(
                 document=document,
-                status=DocumentStatus.NEEDS_REVIEW,
+                status=final_status,
             )
+
+            if final_status == DocumentStatus.APPROVED:
+                self.event_log_repository.create(
+                    organization_id=document.organization_id,
+                    entity_type="document",
+                    entity_id=document.id,
+                    event_type="approved",
+                    actor_type=ActorType.WORKER,
+                    payload={
+                        "reason": "auto_approved",
+                        "confidence_score": confidence_score,
+                    },
+                )
+            else:
+                self.event_log_repository.create(
+                    organization_id=document.organization_id,
+                    entity_type="document",
+                    entity_id=document.id,
+                    event_type="needs_review",
+                    actor_type=ActorType.WORKER,
+                    payload={
+                        "confidence_score": confidence_score,
+                        "missing_fields": missing_fields,
+                    },
+                )
 
             self.db.commit()
 
@@ -396,3 +424,25 @@ class DocumentProcessingService:
             return "USD"
 
         return None
+    
+    def _decide_final_status(
+        self,
+        *,
+        confidence_score: float,
+        missing_fields: list[str],
+    ) -> DocumentStatus:
+        """
+        Decide el estado final del pipeline automatico.
+
+        Regla del challenge:
+        - needs_review si confidence_score < 0.85
+        - needs_review si faltan campos requeridos
+        - approved si confidence_score >= 0.85 y no faltan campos
+        """
+        if confidence_score < 0.85:
+            return DocumentStatus.NEEDS_REVIEW
+
+        if missing_fields:
+            return DocumentStatus.NEEDS_REVIEW
+
+        return DocumentStatus.APPROVED
