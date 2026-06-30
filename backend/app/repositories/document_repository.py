@@ -119,3 +119,76 @@ class DocumentRepository:
         self.db.refresh(document)
 
         return document
+    
+    def get_by_id_for_organization(
+        self,
+        *,
+        document_id: uuid.UUID,
+        organization_id: uuid.UUID,
+    ) -> Document | None:
+        """
+        Busca un documento filtrando por organizacion.
+
+        Esta es la regla multi-tenant importante:
+        nunca consultar un documento solo por id.
+        """
+        statement = select(Document).where(
+            Document.id == document_id,
+            Document.organization_id == organization_id,
+        )
+
+        return self.db.execute(statement).scalar_one_or_none()
+
+    def list_for_organization(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        status: DocumentStatus | None,
+        document_type,
+        limit: int,
+        offset: int,
+    ) -> list[Document]:
+        """
+        Lista documentos de una organizacion con filtros opcionales.
+        """
+        statement = select(Document).where(
+            Document.organization_id == organization_id,
+        )
+
+        if status is not None:
+            statement = statement.where(Document.status == status)
+
+        if document_type is not None:
+            statement = statement.where(Document.document_type == document_type)
+
+        statement = (
+            statement.order_by(Document.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        return list(self.db.execute(statement).scalars().all())
+
+    def count_for_organization(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        status: DocumentStatus | None,
+        document_type,
+    ) -> int:
+        """
+        Cuenta documentos de una organizacion aplicando los mismos filtros.
+        """
+        from sqlalchemy import func
+
+        statement = select(func.count()).select_from(Document).where(
+            Document.organization_id == organization_id,
+        )
+
+        if status is not None:
+            statement = statement.where(Document.status == status)
+
+        if document_type is not None:
+            statement = statement.where(Document.document_type == document_type)
+
+        return self.db.execute(statement).scalar_one()

@@ -47,3 +47,31 @@ class EventLogRepository:
         self.db.refresh(event)
 
         return event
+    
+    def list_for_entity(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        entity_type: str,
+        entity_id: uuid.UUID,
+        limit: int = 50,
+    ) -> list[EventLog]:
+        """
+        Lista eventos de una entidad.
+
+        En documentos, entity_type sera "document".
+        """
+        from sqlalchemy import select
+
+        statement = (
+            select(EventLog)
+            .where(
+                EventLog.organization_id == organization_id,
+                EventLog.entity_type == entity_type,
+                EventLog.entity_id == entity_id,
+            )
+            .order_by(EventLog.created_at.asc())
+            .limit(limit)
+        )
+
+        return list(self.db.execute(statement).scalars().all())

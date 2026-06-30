@@ -66,3 +66,21 @@ class ExtractedFieldRepository:
             self.db.refresh(field)
 
         return created_fields
+    
+    def list_for_document(
+        self,
+        *,
+        document_id: uuid.UUID,
+    ) -> list[ExtractedField]:
+        """
+        Lista los campos extraidos de un documento.
+        """
+        from sqlalchemy import select
+
+        statement = (
+            select(ExtractedField)
+            .where(ExtractedField.document_id == document_id)
+            .order_by(ExtractedField.created_at.asc())
+        )
+
+        return list(self.db.execute(statement).scalars().all())

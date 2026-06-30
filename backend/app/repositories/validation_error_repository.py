@@ -60,3 +60,21 @@ class ValidationErrorRepository:
             self.db.refresh(error)
 
         return errors
+    
+    def list_for_document(
+        self,
+        *,
+        document_id: uuid.UUID,
+    ) -> list[DocumentValidationError]:
+        """
+        Lista errores de validacion de un documento.
+        """
+        from sqlalchemy import select
+
+        statement = (
+            select(DocumentValidationError)
+            .where(DocumentValidationError.document_id == document_id)
+            .order_by(DocumentValidationError.created_at.asc())
+        )
+
+        return list(self.db.execute(statement).scalars().all())
