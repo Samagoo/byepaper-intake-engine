@@ -1,5 +1,6 @@
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Document
@@ -8,9 +9,12 @@ from app.models.enums import DocumentStatus
 
 class DocumentRepository:
     """
-    Repositorio para la gestión de persistencia de entidades 'Document'.
-    Encapsula las operaciones de base de datos relacionadas con los archivos subidos.
+    Encapsula operaciones de base de datos relacionadas con documentos.
+
+    Esta capa no decide reglas de negocio. Solo sabe crear y consultar
+    documentos usando SQLAlchemy.
     """
+
     def __init__(self, db: Session):
         self.db = db
 
@@ -25,13 +29,14 @@ class DocumentRepository:
         checksum_sha256: str,
         source_reference: str | None,
         storage_key: str,
+        is_duplicate_candidate: bool = False,
+        duplicate_of_document_id: uuid.UUID | None = None,
     ) -> Document:
         """
-        Registra un nuevo documento asociado a un lote (batch).
-        
-        Inicializa el documento con el estado 'UPLOADED'. Se utiliza 'flush' y 
-        'refresh' para asegurar la integridad de la transacción y la recuperación 
-        de los valores generados por la base de datos (como el ID del documento).
+        Crea un documento.
+
+        Si is_duplicate_candidate es True, el documento representa una subida
+        repetida detectada por checksum dentro de la misma organización.
         """
         document = Document(
             organization_id=organization_id,
@@ -43,6 +48,8 @@ class DocumentRepository:
             source_reference=source_reference,
             storage_key=storage_key,
             status=DocumentStatus.UPLOADED,
+            is_duplicate_candidate=is_duplicate_candidate,
+            duplicate_of_document_id=duplicate_of_document_id,
         )
 
         self.db.add(document)
@@ -50,3 +57,23 @@ class DocumentRepository:
         self.db.refresh(document)
 
         return document
+
+    def get_canonical_by_checksum_for_organization(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        checksum_sha256: str,
+    ) -> Document | None:
+        """
+        Busca el documento original con el mismo checksum.
+
+        Solo buscamos dentro de la misma organización. Dos organizaciones
+        distintas pueden subir el mismo archivo sin bloquearse entre ellas.
+        """
+        statement = select(Document).where(
+            Document.organization_id == organization_id,
+            Document.checksum_sha256 == checksum_sha256,
+            Document.is_duplicate_candidate.is_(False),
+        )
+
+        return self.db.execute(statement).scalar_one_or_none()

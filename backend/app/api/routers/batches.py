@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -18,6 +18,7 @@ from app.services.document_service import (
     DuplicateDocumentError,
     FileTooLargeError,
     InvalidFileTypeError,
+    IdempotencyConflictError,
 )
 
 router = APIRouter(
@@ -118,28 +119,27 @@ def get_batch(
 )
 async def upload_document_to_batch(
     batch_id: uuid.UUID,
-    # Se utiliza File para manejar el binario y Form para metadatos adjuntos
     file: UploadFile = File(...),
     source_reference: str | None = Form(default=None),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     current_organization: Organization = Depends(get_current_organization),
     db: Session = Depends(get_db),
 ):
     """
-    Endpoint para la ingesta de documentos dentro de un lote (batch) específico.
-    
-    Recibe el archivo binario, valida la pertenencia del lote a la organización 
-    y delega la persistencia al DocumentService.
+    Sube un documento al batch autenticado por API key.
+
+    La organización no llega en el body. Sale de get_current_organization,
+    lo cual evita que un tenant suba archivos en batches ajenos.
     """
     service = DocumentService(db)
 
     try:
-        # Llamada asíncrona al servicio, ya que la lectura de archivos en FastAPI 
-        # debe realizarse en un contexto awaitable.
         return await service.upload_document(
             current_organization=current_organization,
             batch_id=batch_id,
             file=file,
             source_reference=source_reference,
+            idempotency_key=idempotency_key,
         )
 
     except BatchNotFoundForUploadError as exc:
@@ -157,6 +157,12 @@ async def upload_document_to_batch(
     except FileTooLargeError as exc:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=str(exc),
+        ) from exc
+
+    except IdempotencyConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         ) from exc
 
