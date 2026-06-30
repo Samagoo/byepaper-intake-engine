@@ -7,16 +7,20 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.adapters.storage.local_storage import LocalStorageAdapter
 from app.core.config import get_settings
-from app.models import Organization
+
 from app.repositories.batch_repository import BatchRepository
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.idempotency_repository import IdempotencyRepository
+from app.repositories.event_log_repository import EventLogRepository
+
 from app.schemas.document import DocumentRead
 
 from app.adapters.queue.document_queue import DocumentQueue
-from app.models.enums import DocumentStatus
+from app.adapters.storage.local_storage import LocalStorageAdapter
+
+from app.models.enums import DocumentStatus, ActorType
+from app.models import Organization
 
 from app.services.batch_status_service import BatchStatusService
 
@@ -69,6 +73,7 @@ class DocumentService:
         self.storage_adapter = LocalStorageAdapter()
         self.document_queue = DocumentQueue()
         self.batch_status_service = BatchStatusService(db)
+        self.event_log_repository = EventLogRepository(db)
 
     async def upload_document(
         self,
@@ -173,10 +178,65 @@ class DocumentService:
                 duplicate_of_document_id=duplicate_of_document_id,
             )
 
-            document = self.document_repository.update_status(
-                document=document,
-                status=DocumentStatus.QUEUED,
+            self.event_log_repository.create(
+                organization_id=current_organization.id,
+                entity_type="document",
+                entity_id=document.id,
+                event_type="document_uploaded",
+                actor_type=ActorType.API,
+                payload={
+                    "filename": filename,
+                    "mime_type": mime_type,
+                    "file_size": file_size,
+                    "checksum_sha256": checksum_sha256,
+                    "source_reference": source_reference,
+                    "is_duplicate_candidate": is_duplicate_candidate,
+                },
             )
+
+            if is_duplicate_candidate:
+                document = self.document_repository.update_status(
+                    document=document,
+                    status=DocumentStatus.NEEDS_REVIEW,
+                )
+
+                self.event_log_repository.create(
+                    organization_id=current_organization.id,
+                    entity_type="document",
+                    entity_id=document.id,
+                    event_type="document_duplicate_detected",
+                    actor_type=ActorType.API,
+                    payload={
+                        "checksum_sha256": checksum_sha256,
+                        "duplicate_of_document_id": str(duplicate_of_document_id),
+                    },
+                )
+
+                self.event_log_repository.create(
+                    organization_id=current_organization.id,
+                    entity_type="document",
+                    entity_id=document.id,
+                    event_type="needs_review",
+                    actor_type=ActorType.API,
+                    payload={
+                        "reason": "duplicate_candidate",
+                    },
+                )
+
+            else:
+                document = self.document_repository.update_status(
+                    document=document,
+                    status=DocumentStatus.QUEUED,
+                )
+
+                self.event_log_repository.create(
+                    organization_id=current_organization.id,
+                    entity_type="document",
+                    entity_id=document.id,
+                    event_type="document_queued",
+                    actor_type=ActorType.API,
+                    payload={},
+                )
 
             self.batch_status_service.recalculate_for_batch(
                 batch_id=batch.id,
@@ -197,9 +257,10 @@ class DocumentService:
 
             self.db.commit()
 
-            self.document_queue.enqueue_document_processing(
-                document_id=document.id,
-            )
+            if not is_duplicate_candidate:
+                self.document_queue.enqueue_document_processing(
+                    document_id=document.id,
+                )
 
             return response_snapshot
 
