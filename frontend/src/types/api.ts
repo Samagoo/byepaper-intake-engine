@@ -123,3 +123,22 @@ export type DocumentReviewResponse = {
   missing_fields?: string[];
   reason?: string;
 };
+
+export type OrganizationStatus = "active" | "inactive";
+
+export type Organization = {
+  id: string;
+  name: string;
+  slug: string;
+  status: OrganizationStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ApiKeyCreateResponse = {
+  id: string;
+  organization_id: string;
+  prefix: string;
+  api_key: string;
+  created_at: string;
+};

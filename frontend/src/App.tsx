@@ -4,20 +4,27 @@ import { AppShell } from "./components/AppShell";
 import { BatchDetail } from "./features/BatchDetail";
 import { Dashboard } from "./features/Dashboard";
 import { DocumentDetail } from "./features/DocumentDetail";
+import { Onboarding } from "./features/Onboarding";
 
 const API_KEY_STORAGE_KEY = "byepaper_api_key";
 
 type ViewState =
+  | { name: "onboarding" }
   | { name: "dashboard" }
   | { name: "batch"; batchId: string }
   | { name: "document"; documentId: string };
 
 export default function App() {
   const [apiKey, setApiKey] = useState("");
-  const [view, setView] = useState<ViewState>({ name: "dashboard" });
+  const [view, setView] = useState<ViewState>({ name: "onboarding" });
 
   useEffect(() => {
-    setApiKey(localStorage.getItem(API_KEY_STORAGE_KEY) ?? "");
+    const storedApiKey = localStorage.getItem(API_KEY_STORAGE_KEY) ?? "";
+    setApiKey(storedApiKey);
+
+    if (storedApiKey) {
+      setView({ name: "dashboard" });
+    }
   }, []);
 
   function handleApiKeyChange(value: string) {
@@ -25,8 +32,21 @@ export default function App() {
     localStorage.setItem(API_KEY_STORAGE_KEY, value);
   }
 
+  function handleApiKeyCreated(value: string) {
+    handleApiKeyChange(value);
+    setView({ name: "dashboard" });
+  }
+
   return (
-    <AppShell apiKey={apiKey} onApiKeyChange={handleApiKeyChange}>
+    <AppShell
+      apiKey={apiKey}
+      onApiKeyChange={handleApiKeyChange}
+      onOpenOnboarding={() => setView({ name: "onboarding" })}
+    >
+      {view.name === "onboarding" && (
+        <Onboarding onApiKeyCreated={handleApiKeyCreated} />
+      )}
+
       {view.name === "dashboard" && (
         <Dashboard
           apiKey={apiKey}

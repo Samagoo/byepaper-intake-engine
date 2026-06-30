@@ -3,12 +3,14 @@ import { FileStack, KeyRound } from "lucide-react";
 type AppShellProps = {
   apiKey: string;
   onApiKeyChange: (value: string) => void;
+  onOpenOnboarding: () => void;
   children: React.ReactNode;
 };
 
 export function AppShell({
   apiKey,
   onApiKeyChange,
+  onOpenOnboarding,
   children,
 }: AppShellProps) {
   return (
@@ -33,6 +35,9 @@ export function AppShell({
             placeholder="byp_xxxxx_xxxxx"
             rows={5}
           />
+          <button className="sidebar-button" onClick={onOpenOnboarding}>
+            Crear organización
+          </button>
         </label>
       </aside>
 
