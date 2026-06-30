@@ -1,17 +1,21 @@
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile, status
+from fastapi import File, Form, UploadFile
+
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_organization
+from app.core.rate_limit import rate_limit_by_api_key
+
 from app.models import Organization
 from app.models.enums import BatchStatus
-from app.schemas.batch import BatchCreate, BatchListResponse, BatchRead
-from app.services.batch_service import BatchNotFoundError, BatchService
 
-from fastapi import File, Form, UploadFile
+from app.schemas.batch import BatchCreate, BatchListResponse, BatchRead
 from app.schemas.document import DocumentRead
+
+from app.services.batch_service import BatchNotFoundError, BatchService
 from app.services.document_service import (
     BatchNotFoundForUploadError,
     DocumentService,
@@ -24,6 +28,7 @@ from app.services.document_service import (
 router = APIRouter(
     prefix="/batches",
     tags=["batches"],
+    dependencies=[Depends(rate_limit_by_api_key)],
 )
 
 

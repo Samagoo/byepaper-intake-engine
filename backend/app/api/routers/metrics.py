@@ -3,13 +3,18 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_organization
+from app.core.rate_limit import rate_limit_by_api_key
+
 from app.models import Organization
+
 from app.schemas.metrics import MetricsRead
+
 from app.services.metrics_service import MetricsService
 
 router = APIRouter(
     prefix="/metrics",
     tags=["metrics"],
+    dependencies=[Depends(rate_limit_by_api_key)],
 )
 
 

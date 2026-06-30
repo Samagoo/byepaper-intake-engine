@@ -5,8 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_organization
+from app.core.rate_limit import rate_limit_by_api_key
+
 from app.models import Organization
 from app.models.enums import DocumentStatus, DocumentType
+
 from app.schemas.document import (
     DocumentDetailRead,
     DocumentListResponse,
@@ -29,6 +32,7 @@ from app.services.document_review_service import (
 router = APIRouter(
     prefix="/documents",
     tags=["documents"],
+    dependencies=[Depends(rate_limit_by_api_key)],
 )
 
 
