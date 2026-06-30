@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # Secreto usado para generar hashes HMAC de API keys.
     API_KEY_HASH_SECRET: str = "change-this-secret-in-production"
 
+    MAX_UPLOAD_SIZE_BYTES: int = 10 * 1024 * 1024
+    ALLOWED_UPLOAD_MIME_TYPES: str = "application/pdf,image/png,image/jpeg,text/plain"
+    LOCAL_STORAGE_ROOT: str = "data/uploads"
+
     @property
     def allowed_mime_types(self) -> set[str]:
         """
@@ -60,9 +64,6 @@ class Settings(BaseSettings):
             for origin in self.CORS_ORIGINS.split(",")
             if origin.strip()
         ]
-    
-    
-
 
 @lru_cache
 def get_settings() -> Settings:

@@ -7,6 +7,8 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.request_id import RequestIdMiddleware
 
+from app.api.routers import batches
+
 #Inicialización de la configuración 
 settings = get_settings()
 #Configuración del sistema de logging global antes de iniciar la aplicación 
@@ -37,6 +39,11 @@ app.include_router(health.router)
 # Endpoints de negocio versionados.
 app.include_router(
     organizations.router,
+    prefix=settings.API_V1_PREFIX,
+)
+# Endpoints para batch 
+app.include_router(
+    batches.router,
     prefix=settings.API_V1_PREFIX,
 )
 
