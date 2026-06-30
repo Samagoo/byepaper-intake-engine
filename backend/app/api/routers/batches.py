@@ -12,7 +12,7 @@ from app.core.rate_limit import rate_limit_by_api_key
 from app.models import Organization
 from app.models.enums import BatchStatus
 
-from app.schemas.batch import BatchCreate, BatchListResponse, BatchRead
+from app.schemas.batch import BatchCreate, BatchListResponse, BatchRead, BatchProgressRead
 from app.schemas.document import DocumentRead
 
 from app.services.batch_service import BatchNotFoundError, BatchService
@@ -86,6 +86,31 @@ def list_batches(
         offset=offset,
     )
 
+@router.get(
+    "/{batch_id}/progress",
+    response_model=BatchProgressRead,
+)
+def get_batch_progress(
+    batch_id: uuid.UUID,
+    current_organization: Organization = Depends(get_current_organization),
+    db: Session = Depends(get_db),
+):
+    """
+    Devuelve progreso agregado del batch para polling controlado.
+    """
+    service = BatchService(db)
+
+    try:
+        return service.get_batch_progress(
+            current_organization=current_organization,
+            batch_id=batch_id,
+        )
+
+    except BatchNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
 
 @router.get(
     "/{batch_id}",

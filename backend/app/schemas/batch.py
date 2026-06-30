@@ -54,3 +54,17 @@ class BatchListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+class BatchProgressRead(BaseModel):
+    """
+    Respuesta para polling controlado de progreso de batch.
+
+    El frontend puede llamar este endpoint cada cierto tiempo para actualizar
+    barras de progreso sin usar WebSocket.
+    """
+
+    batch_id: uuid.UUID
+    status: BatchStatus
+    total_documents: int
+    counts_by_status: dict[str, int]
+    progress_percent: float
