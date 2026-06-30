@@ -19,6 +19,11 @@ from app.services.api_key_service import (
 
 from app.core.security import get_current_organization
 from app.models import Organization
+from app.schemas.validation_rule import ValidationRuleRead, ValidationRuleUpsert
+from app.services.validation_rule_service import (
+    OrganizationMismatchError,
+    ValidationRuleService,
+)
 
 router = APIRouter(
     prefix="/organizations",
@@ -105,5 +110,33 @@ def create_api_key(
     except ApiKeyCreationError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
+    
+@router.put(
+    "/{organization_id}/validation-rules",
+    response_model=ValidationRuleRead,
+)
+def upsert_validation_rule(
+    organization_id: uuid.UUID,
+    payload: ValidationRuleUpsert,
+    current_organization: Organization = Depends(get_current_organization),
+    db: Session = Depends(get_db),
+):
+    """
+    Crea o actualiza reglas de validacion para la organizacion autenticada.
+    """
+    service = ValidationRuleService(db)
+
+    try:
+        return service.upsert_rule(
+            current_organization=current_organization,
+            organization_id=organization_id,
+            data=payload,
+        )
+
+    except OrganizationMismatchError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         ) from exc

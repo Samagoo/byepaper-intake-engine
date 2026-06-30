@@ -7,7 +7,7 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.request_id import RequestIdMiddleware
 
-from app.api.routers import batches
+from app.api.routers import batches, documents
 
 #Inicialización de la configuración 
 settings = get_settings()
@@ -44,6 +44,11 @@ app.include_router(
 # Endpoints para batch 
 app.include_router(
     batches.router,
+    prefix=settings.API_V1_PREFIX,
+)
+# Endpoint para documentos 
+app.include_router(
+    documents.router,
     prefix=settings.API_V1_PREFIX,
 )
 
