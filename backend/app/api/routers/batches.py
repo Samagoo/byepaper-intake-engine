@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -9,6 +9,13 @@ from app.models import Organization
 from app.models.enums import BatchStatus
 from app.schemas.batch import BatchCreate, BatchListResponse, BatchRead
 from app.services.batch_service import BatchNotFoundError, BatchService
+
+from fastapi import File, Form, UploadFile
+from app.schemas.document import DocumentRead
+from app.services.document_service import (
+    BatchNotFoundForUploadError,
+    DocumentService,
+)
 
 router = APIRouter(
     prefix="/batches",
@@ -96,6 +103,44 @@ def get_batch(
 
     except BatchNotFoundError as exc:
         # Transformación de la excepción de dominio en un error HTTP estándar
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    
+@router.post(
+    "/{batch_id}/documents",
+    response_model=DocumentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_document_to_batch(
+    batch_id: uuid.UUID,
+    # Se utiliza File para manejar el binario y Form para metadatos adjuntos
+    file: UploadFile = File(...),
+    source_reference: str | None = Form(default=None),
+    current_organization: Organization = Depends(get_current_organization),
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint para la ingesta de documentos dentro de un lote (batch) específico.
+    
+    Recibe el archivo binario, valida la pertenencia del lote a la organización 
+    y delega la persistencia al DocumentService.
+    """
+    service = DocumentService(db)
+
+    try:
+        # Llamada asíncrona al servicio, ya que la lectura de archivos en FastAPI 
+        # debe realizarse en un contexto awaitable.
+        return await service.upload_document(
+            current_organization=current_organization,
+            batch_id=batch_id,
+            file=file,
+            source_reference=source_reference,
+        )
+
+    except BatchNotFoundForUploadError as exc:
+        # Transformación de error de negocio a respuesta HTTP semántica
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
