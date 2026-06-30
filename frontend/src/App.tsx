@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "./components/AppShell";
 import { BatchDetail } from "./features/BatchDetail";
 import { Dashboard } from "./features/Dashboard";
+import { DocumentDetail } from "./features/DocumentDetail";
 
 const API_KEY_STORAGE_KEY = "byepaper_api_key";
 
@@ -45,16 +46,11 @@ export default function App() {
       )}
 
       {view.name === "document" && (
-        <div className="empty-state">
-          <h1>Detalle de documento</h1>
-          <p>{view.documentId}</p>
-          <button
-            className="secondary-button"
-            onClick={() => setView({ name: "dashboard" })}
-          >
-            Volver al dashboard
-          </button>
-        </div>
+        <DocumentDetail
+          apiKey={apiKey}
+          documentId={view.documentId}
+          onBack={() => setView({ name: "dashboard" })}
+        />
       )}
     </AppShell>
   );

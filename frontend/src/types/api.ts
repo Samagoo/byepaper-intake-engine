@@ -83,3 +83,43 @@ export type BatchProgress = {
   counts_by_status: Record<string, number>;
   progress_percent: number;
 };
+
+export type ExtractedField = {
+  id: string;
+  key_field: string;
+  value: string;
+  confidence_score: number | null;
+  created_at: string;
+};
+
+export type ValidationError = {
+  id: string;
+  field_name: string;
+  error_message: string;
+  created_at: string;
+};
+
+export type DocumentEvent = {
+  id: string;
+  organization_id: string;
+  entity_type: string;
+  entity_id: string;
+  event_type: string;
+  actor_type: string;
+  actor_id: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+};
+
+export type DocumentDetail = Document & {
+  extracted_fields?: ExtractedField[];
+  validation_errors?: ValidationError[];
+};
+
+export type DocumentReviewResponse = {
+  document_id: string;
+  status: string;
+  updated_fields?: string[];
+  missing_fields?: string[];
+  reason?: string;
+};

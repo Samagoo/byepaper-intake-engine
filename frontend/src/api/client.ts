@@ -5,6 +5,9 @@ import type {
   Document,
   DocumentListResponse,
   Metrics,
+  DocumentDetail,
+  DocumentEvent,
+  DocumentReviewResponse,
 } from "../types/api";
 
 const API_BASE_URL =
@@ -109,4 +112,75 @@ export async function uploadDocument(
   }
 
   return response.json() as Promise<Document>;
+}
+
+export function getDocument(apiKey: string, documentId: string) {
+  return apiRequest<DocumentDetail>(`/documents/${documentId}`, {
+    apiKey,
+  });
+}
+
+export function getDocumentEvents(apiKey: string, documentId: string) {
+  return apiRequest<DocumentEvent[]>(`/documents/${documentId}/events`, {
+    apiKey,
+  });
+}
+
+export function updateDocumentFields(
+  apiKey: string,
+  documentId: string,
+  payload: {
+    fields: Record<string, string>;
+    reviewer_id: string;
+  },
+) {
+  return apiRequest<DocumentReviewResponse>(`/documents/${documentId}/fields`, {
+    apiKey,
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export function approveDocument(
+  apiKey: string,
+  documentId: string,
+  reviewerId: string,
+) {
+  return apiRequest<DocumentReviewResponse>(`/documents/${documentId}/approve`, {
+    apiKey,
+    method: "POST",
+    body: {
+      reviewer_id: reviewerId,
+    },
+  });
+}
+
+export function rejectDocument(
+  apiKey: string,
+  documentId: string,
+  reviewerId: string,
+  reason: string,
+) {
+  return apiRequest<DocumentReviewResponse>(`/documents/${documentId}/reject`, {
+    apiKey,
+    method: "POST",
+    body: {
+      reviewer_id: reviewerId,
+      reason,
+    },
+  });
+}
+
+export function retryDocument(
+  apiKey: string,
+  documentId: string,
+  reviewerId: string,
+) {
+  return apiRequest<DocumentReviewResponse>(`/documents/${documentId}/retry`, {
+    apiKey,
+    method: "POST",
+    body: {
+      reviewer_id: reviewerId,
+    },
+  });
 }
