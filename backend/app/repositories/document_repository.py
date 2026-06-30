@@ -192,3 +192,19 @@ class DocumentRepository:
             statement = statement.where(Document.document_type == document_type)
 
         return self.db.execute(statement).scalar_one()
+    
+    def list_statuses_for_batch(
+        self,
+        *,
+        batch_id: uuid.UUID,
+    ) -> list[DocumentStatus]:
+        """
+        Devuelve los estados actuales de todos los documentos de un batch.
+
+        Esta informacion se usa para derivar el estado del batch.
+        """
+        statement = select(Document.status).where(
+            Document.batch_id == batch_id,
+        )
+
+        return list(self.db.execute(statement).scalars().all())
