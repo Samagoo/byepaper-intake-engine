@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # docker-compose.yml monta ./data/storage del host en /data/storage del contenedor.
     LOCAL_STORAGE_ROOT: str = "/data/storage"
 
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_REQUESTS: int = 60
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
+
     @property
     def allowed_mime_types(self) -> set[str]:
         """

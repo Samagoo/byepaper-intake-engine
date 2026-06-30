@@ -3,9 +3,12 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.models import Organization
-from app.models.enums import BatchStatus
+from app.models.enums import BatchStatus, DocumentStatus
+
 from app.repositories.batch_repository import BatchRepository
-from app.schemas.batch import BatchCreate, BatchListResponse
+from app.repositories.document_repository import DocumentRepository
+
+from app.schemas.batch import BatchCreate, BatchListResponse, BatchProgressRead
 
 class BatchNotFoundError(Exception):
     """
@@ -21,6 +24,7 @@ class BatchService:
     def __init__(self, db: Session):
         self.db = db
         self.batch_repository = BatchRepository(db)
+        self.document_repository = DocumentRepository(db)
 
     def create_batch(
         self,
@@ -106,3 +110,52 @@ class BatchService:
             raise BatchNotFoundError("Batch not found")
 
         return batch
+    
+    def get_batch_progress(
+        self,
+        *,
+        current_organization: Organization,
+        batch_id: uuid.UUID,
+    ) -> BatchProgressRead:
+        """
+        Calcula progreso de un batch para polling controlado.
+
+        Solo cuenta documentos del batch perteneciente a la organizacion
+        autenticada.
+        """
+        batch = self.batch_repository.get_by_id_for_organization(
+            batch_id=batch_id,
+            organization_id=current_organization.id,
+        )
+
+        if batch is None:
+            raise BatchNotFoundError("Batch not found")
+
+        counts_by_status = self.document_repository.count_by_status_for_batch(
+            batch_id=batch.id,
+        )
+
+        total_documents = sum(counts_by_status.values())
+
+        final_count = sum(
+            counts_by_status.get(status.value, 0)
+            for status in {
+                DocumentStatus.APPROVED,
+                DocumentStatus.REJECTED,
+                DocumentStatus.FAILED,
+            }
+        )
+
+        progress_percent = (
+            round((final_count / total_documents) * 100, 2)
+            if total_documents > 0
+            else 0.0
+        )
+
+        return BatchProgressRead(
+            batch_id=batch.id,
+            status=batch.status,
+            total_documents=total_documents,
+            counts_by_status=counts_by_status,
+            progress_percent=progress_percent,
+        )

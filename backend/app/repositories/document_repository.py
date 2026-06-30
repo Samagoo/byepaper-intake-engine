@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.models import Document
@@ -192,3 +192,40 @@ class DocumentRepository:
             statement = statement.where(Document.document_type == document_type)
 
         return self.db.execute(statement).scalar_one()
+    
+    def list_statuses_for_batch(
+        self,
+        *,
+        batch_id: uuid.UUID,
+    ) -> list[DocumentStatus]:
+        """
+        Devuelve los estados actuales de todos los documentos de un batch.
+
+        Esta informacion se usa para derivar el estado del batch.
+        """
+        statement = select(Document.status).where(
+            Document.batch_id == batch_id,
+        )
+
+        return list(self.db.execute(statement).scalars().all())
+    
+    def count_by_status_for_batch(
+        self,
+        *,
+        batch_id: uuid.UUID,
+    ) -> dict[str, int]:
+        """
+        Cuenta documentos agrupados por status dentro de un batch.
+        """
+        statement = (
+            select(Document.status, func.count())
+            .where(Document.batch_id == batch_id)
+            .group_by(Document.status)
+        )
+
+        rows = self.db.execute(statement).all()
+
+        return {
+            status.value if isinstance(status, DocumentStatus) else str(status): count
+            for status, count in rows
+        }

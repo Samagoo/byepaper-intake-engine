@@ -1,13 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import health
-from app.api.routers import organizations
 from app.core.config import get_settings
+
 from app.core.logging import configure_logging
+
 from app.core.request_id import RequestIdMiddleware
 
 from app.api.routers import batches, documents
+from app.api.routers import metrics
+from app.api.routers import health
+from app.api.routers import organizations
 
 #Inicialización de la configuración 
 settings = get_settings()
@@ -52,6 +55,11 @@ app.include_router(
     prefix=settings.API_V1_PREFIX,
 )
 
+# Métricas de documento
+app.include_router(
+    metrics.router,
+    prefix=settings.API_V1_PREFIX,
+)
 
 @app.get("/", tags=["root"])
 def root():

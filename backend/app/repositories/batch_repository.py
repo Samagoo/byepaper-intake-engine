@@ -112,3 +112,22 @@ class BatchRepository:
             statement = statement.where(Batch.status == status)
 
         return self.db.execute(statement).scalar_one()
+    
+    def update_status(
+        self,
+        *,
+        batch: Batch,
+        status: BatchStatus,
+    ) -> Batch:
+        """
+        Actualiza el estado persistido del batch.
+
+        El estado no se decide aqui. Este metodo solo guarda el resultado
+        calculado por la capa de servicio.
+        """
+        batch.status = status
+
+        self.db.flush()
+        self.db.refresh(batch)
+
+        return batch

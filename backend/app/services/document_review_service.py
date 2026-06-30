@@ -15,6 +15,8 @@ from app.schemas.document import DocumentFieldsUpdate
 
 from app.adapters.queue.document_queue import DocumentQueue
 
+from app.services.batch_status_service import BatchStatusService
+
 
 class DocumentNotFoundForReviewError(Exception):
     """
@@ -65,6 +67,7 @@ class DocumentReviewService:
         self.validation_rule_repository = ValidationRuleRepository(db)
         self.event_log_repository = EventLogRepository(db)
         self.document_queue = DocumentQueue()
+        self.batch_status_service = BatchStatusService(db)
 
     def update_fields(
         self,
@@ -243,6 +246,11 @@ class DocumentReviewService:
                 payload={},
             )
 
+            self.batch_status_service.recalculate_for_batch(
+                batch_id=document.batch_id,
+                organization_id=current_organization.id,
+            )
+
             self.db.commit()
 
             return {
@@ -298,6 +306,11 @@ class DocumentReviewService:
                 },
             )
 
+            self.batch_status_service.recalculate_for_batch(
+                batch_id=document.batch_id,
+                organization_id=current_organization.id,
+            )
+
             self.db.commit()
 
             return {
@@ -349,6 +362,11 @@ class DocumentReviewService:
                 actor_type=ActorType.REVIEWER,
                 actor_id=reviewer_id,
                 payload={},
+            )
+
+            self.batch_status_service.recalculate_for_batch(
+                batch_id=document.batch_id,
+                organization_id=current_organization.id,
             )
 
             self.db.commit()

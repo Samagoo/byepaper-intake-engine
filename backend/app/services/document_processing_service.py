@@ -6,13 +6,17 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from app.adapters.storage.local_storage import LocalStorageAdapter
+
 from app.models import Document
 from app.models.enums import ActorType, DocumentStatus, DocumentType
+
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.event_log_repository import EventLogRepository
 from app.repositories.extracted_field_repository import ExtractedFieldRepository
 from app.repositories.validation_error_repository import ValidationErrorRepository
 from app.repositories.validation_rule_repository import ValidationRuleRepository
+
+from app.services.batch_status_service import BatchStatusService
 
 logger = logging.getLogger("app.services.document_processing")
 
@@ -46,6 +50,7 @@ class DocumentProcessingService:
         self.extracted_field_repository = ExtractedFieldRepository(db)
         self.validation_error_repository = ValidationErrorRepository(db)
         self.validation_rule_repository = ValidationRuleRepository(db)
+        self.batch_status_service = BatchStatusService(db)
 
     def process_document(
         self,
@@ -199,6 +204,11 @@ class DocumentProcessingService:
                         "missing_fields": missing_fields,
                     },
                 )
+            
+            self.batch_status_service.recalculate_for_batch(
+                batch_id=document.batch_id,
+                organization_id=document.organization_id,
+            )
 
             self.db.commit()
 
@@ -219,6 +229,11 @@ class DocumentProcessingService:
                     payload={
                         "error": str(exc),
                     },
+                )
+
+                self.batch_status_service.recalculate_for_batch(
+                    batch_id=document.batch_id,
+                    organization_id=document.organization_id,
                 )
 
                 self.db.commit()
