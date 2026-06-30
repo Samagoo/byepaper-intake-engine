@@ -6,8 +6,8 @@ import type { Batch, BatchStatus, Metrics } from "../types/api";
 
 type DashboardProps = {
   apiKey: string;
+  onOpenBatch: (batchId: string) => void;
 };
-
 const batchStatuses: Array<BatchStatus | "all"> = [
   "all",
   "created",
@@ -18,7 +18,7 @@ const batchStatuses: Array<BatchStatus | "all"> = [
   "partially_failed",
 ];
 
-export function Dashboard({ apiKey }: DashboardProps) {
+export function Dashboard({ apiKey, onOpenBatch }: DashboardProps) {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [statusFilter, setStatusFilter] = useState<BatchStatus | "all">("all");
@@ -184,7 +184,11 @@ export function Dashboard({ apiKey }: DashboardProps) {
             </thead>
             <tbody>
               {batches.map((batch) => (
-                <tr key={batch.id}>
+                <tr
+                  key={batch.id}
+                  className="clickable-row"
+                  onClick={() => onOpenBatch(batch.id)}
+                >
                   <td>
                     <strong>{batch.name}</strong>
                     <span>{batch.id}</span>
