@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Batch
@@ -61,3 +61,54 @@ class BatchRepository:
         )
 
         return self.db.execute(statement).scalar_one_or_none()
+    
+    def list_for_organization(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        status: BatchStatus | None,
+        limit: int,
+        offset: int,
+    ) -> list[Batch]:
+        """
+        Recupera una lista paginada de entidades Batch para una organización 
+        específica filtrada opcionalmente por estado 
+
+        Aplica un ordenamiento descendente por created_at para representar 
+        los registros más recientes primero 
+        """
+        statement = select(Batch).where(
+            Batch.organization_id == organization_id,
+        )
+
+        # Aplicación condicional de filtros 
+        if status is not None:
+            statement = statement.where(Batch.status == status)
+
+        # Configuracion de paginacion y ordenamiento 
+        statement = (
+            statement.order_by(Batch.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        return list(self.db.execute(statement).scalars().all())
+
+    def count_for_organization(
+        self,
+        *,
+        organization_id: uuid.UUID,
+        status: BatchStatus | None,
+    ) -> int:
+        """
+        Calcula el número total de registros Batch que ucmplen con los criterios
+        de filtro, utilizados para la construcción de metadatos de paginación 
+        """
+        statement = select(func.count()).select_from(Batch).where(
+            Batch.organization_id == organization_id,
+        )
+
+        if status is not None:
+            statement = statement.where(Batch.status == status)
+
+        return self.db.execute(statement).scalar_one()

@@ -42,3 +42,15 @@ class BatchRead(BaseModel):
     )
     created_at: datetime
     updated_at: datetime
+
+class BatchListResponse(BaseModel):
+    """
+    Esquema de respuesta paginada para listar las entidades Batch. 
+
+    Proporciona metadatos sobre la paginación para permitir el frontend 
+    calcular la navegación y el estado de las listas
+    """
+    items: list[BatchRead]
+    total: int
+    limit: int
+    offset: int
