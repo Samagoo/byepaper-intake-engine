@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.models import Organization
-from app.models.enums import ActorType, DocumentType
+from app.models.enums import ActorType, DocumentType, DocumentStatus
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.event_log_repository import EventLogRepository
 from app.repositories.extracted_field_repository import ExtractedFieldRepository
@@ -17,6 +17,16 @@ class DocumentNotFoundForReviewError(Exception):
     Se lanza cuando el documento no existe dentro de la organizacion actual.
     """
 
+class DocumentInvalidStateForReviewError(Exception):
+    """
+    Se lanza cuando el documento no esta en needs_review.
+    """
+
+
+class DocumentApprovalBlockedError(Exception):
+    """
+    Se lanza cuando faltan campos requeridos y no se puede aprobar.
+    """
 
 class DocumentReviewService:
     """
@@ -151,3 +161,141 @@ class DocumentReviewService:
             for key_field in required_fields
             if not fields_by_key.get(key_field)
         ]
+    
+    def approve_document(
+        self,
+        *,
+        current_organization: Organization,
+        document_id: uuid.UUID,
+        reviewer_id: str | None,
+    ):
+        """
+        Aprueba manualmente un documento en needs_review.
+
+        Antes de aprobar, valida que no falten campos requeridos.
+        """
+        document = self.document_repository.get_by_id_for_organization(
+            document_id=document_id,
+            organization_id=current_organization.id,
+        )
+
+        if document is None:
+            raise DocumentNotFoundForReviewError("Document not found")
+
+        if document.status != DocumentStatus.NEEDS_REVIEW:
+            raise DocumentInvalidStateForReviewError(
+                "Document must be in needs_review before approval"
+            )
+
+        current_fields = self.extracted_field_repository.list_for_document(
+            document_id=document.id,
+        )
+
+        fields_by_key = {
+            field.key_field: field.value
+            for field in current_fields
+        }
+
+        missing_fields = self._get_missing_fields(
+            organization_id=current_organization.id,
+            document_type=document.document_type or DocumentType.OTHER,
+            fields_by_key=fields_by_key,
+        )
+
+        self.validation_error_repository.delete_for_document(
+            document_id=document.id,
+        )
+
+        if missing_fields:
+            self.validation_error_repository.create_many(
+                document_id=document.id,
+                missing_fields=missing_fields,
+            )
+            self.db.commit()
+
+            raise DocumentApprovalBlockedError(
+                "Document has missing required fields"
+            )
+
+        try:
+            self.document_repository.update_status(
+                document=document,
+                status=DocumentStatus.APPROVED,
+            )
+
+            self.event_log_repository.create(
+                organization_id=current_organization.id,
+                entity_type="document",
+                entity_id=document.id,
+                event_type="approved",
+                actor_type=ActorType.REVIEWER,
+                actor_id=reviewer_id,
+                payload={},
+            )
+
+            self.db.commit()
+
+            return {
+                "document_id": str(document.id),
+                "status": document.status.value,
+            }
+
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def reject_document(
+        self,
+        *,
+        current_organization: Organization,
+        document_id: uuid.UUID,
+        reviewer_id: str | None,
+        reason: str | None,
+    ):
+        """
+        Rechaza manualmente un documento en needs_review.
+
+        Rejected es decision humana. Failed es error tecnico.
+        """
+        document = self.document_repository.get_by_id_for_organization(
+            document_id=document_id,
+            organization_id=current_organization.id,
+        )
+
+        if document is None:
+            raise DocumentNotFoundForReviewError("Document not found")
+
+        if document.status != DocumentStatus.NEEDS_REVIEW:
+            raise DocumentInvalidStateForReviewError(
+                "Document must be in needs_review before rejection"
+            )
+
+        try:
+            self.document_repository.update_status(
+                document=document,
+                status=DocumentStatus.REJECTED,
+            )
+
+            self.event_log_repository.create(
+                organization_id=current_organization.id,
+                entity_type="document",
+                entity_id=document.id,
+                event_type="rejected",
+                actor_type=ActorType.REVIEWER,
+                actor_id=reviewer_id,
+                payload={
+                    "reason": reason,
+                },
+            )
+
+            self.db.commit()
+
+            return {
+                "document_id": str(document.id),
+                "status": document.status.value,
+                "reason": reason,
+            }
+
+        except Exception:
+            self.db.rollback()
+            raise

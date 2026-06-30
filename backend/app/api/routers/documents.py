@@ -12,6 +12,7 @@ from app.schemas.document import (
     DocumentListResponse,
     EventLogRead,
     DocumentFieldsUpdate,
+    DocumentDecisionRequest,
 )
 from app.services.document_query_service import (
     DocumentNotFoundError,
@@ -20,6 +21,8 @@ from app.services.document_query_service import (
 from app.services.document_review_service import (
     DocumentNotFoundForReviewError,
     DocumentReviewService,
+    DocumentApprovalBlockedError,
+    DocumentInvalidStateForReviewError,
 )
 
 router = APIRouter(
@@ -135,5 +138,79 @@ def update_document_fields(
     except DocumentNotFoundForReviewError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    
+@router.post(
+    "/{document_id}/approve",
+)
+def approve_document(
+    document_id: uuid.UUID,
+    payload: DocumentDecisionRequest,
+    current_organization: Organization = Depends(get_current_organization),
+    db: Session = Depends(get_db),
+):
+    """
+    Aprueba un documento que esta en revision humana.
+    """
+    service = DocumentReviewService(db)
+
+    try:
+        return service.approve_document(
+            current_organization=current_organization,
+            document_id=document_id,
+            reviewer_id=payload.reviewer_id,
+        )
+
+    except DocumentNotFoundForReviewError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    except DocumentInvalidStateForReviewError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+
+    except DocumentApprovalBlockedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/{document_id}/reject",
+)
+def reject_document(
+    document_id: uuid.UUID,
+    payload: DocumentDecisionRequest,
+    current_organization: Organization = Depends(get_current_organization),
+    db: Session = Depends(get_db),
+):
+    """
+    Rechaza un documento que esta en revision humana.
+    """
+    service = DocumentReviewService(db)
+
+    try:
+        return service.reject_document(
+            current_organization=current_organization,
+            document_id=document_id,
+            reviewer_id=payload.reviewer_id,
+            reason=payload.reason,
+        )
+
+    except DocumentNotFoundForReviewError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    except DocumentInvalidStateForReviewError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         ) from exc

@@ -136,3 +136,14 @@ class DocumentFieldsUpdate(BaseModel):
 
     fields: dict[str, str] = Field(default_factory=dict)
     reviewer_id: str | None = "reviewer-demo"
+
+class DocumentDecisionRequest(BaseModel):
+    """
+    Payload para aprobar o rechazar un documento.
+
+    reviewer_id identifica al humano que tomo la decision.
+    reason se usa principalmente al rechazar.
+    """
+
+    reviewer_id: str | None = "reviewer-demo"
+    reason: str | None = None
