@@ -96,3 +96,26 @@ class DocumentRepository:
         self.db.refresh(document)
 
         return document
+    
+    def update_processing_result(
+        self,
+        *,
+        document: Document,
+        status: DocumentStatus,
+        document_type,
+        confidence_score: float,
+    ) -> Document:
+        """
+        Guarda el resultado principal del procesamiento.
+
+        Aqui se actualiza el tipo documental, el confidence_score y el estado
+        final del pipeline automatico.
+        """
+        document.status = status
+        document.document_type = document_type
+        document.confidence_score = confidence_score
+
+        self.db.flush()
+        self.db.refresh(document)
+
+        return document

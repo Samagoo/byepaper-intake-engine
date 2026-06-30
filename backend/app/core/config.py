@@ -39,7 +39,9 @@ class Settings(BaseSettings):
 
     MAX_UPLOAD_SIZE_BYTES: int = 10 * 1024 * 1024
     ALLOWED_UPLOAD_MIME_TYPES: str = "application/pdf,image/png,image/jpeg,text/plain"
-    LOCAL_STORAGE_ROOT: str = "data/uploads"
+    # Carpeta compartida entre API y worker dentro de Docker.
+    # docker-compose.yml monta ./data/storage del host en /data/storage del contenedor.
+    LOCAL_STORAGE_ROOT: str = "/data/storage"
 
     @property
     def allowed_mime_types(self) -> set[str]:
