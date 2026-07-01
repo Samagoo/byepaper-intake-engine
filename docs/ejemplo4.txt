@@ -1,0 +1,4 @@
+Bank statement
+Account holder: Carlos Ramirez
+Total 24500 USD
+Period: June 2026

@@ -11,6 +11,62 @@ import {
 } from "../api/client";
 import type { DocumentDetail as DocumentDetailType, DocumentEvent } from "../types/api";
 
+const defaultFieldsByDocumentType: Record<string, Record<string, string>> = {
+  invoice: {
+    vendor: "",
+    total: "",
+    currency: "MXN",
+    document_date: "",
+  },
+  contract: {
+    contract_number: "",
+    person_name: "",
+    document_date: "",
+  },
+  id_document: {
+    person_name: "",
+    document_date: "",
+  },
+  bank_statement: {
+    person_name: "",
+    total: "",
+    currency: "MXN",
+    document_date: "",
+  },
+  other: {
+    description: "",
+  },
+};
+
+function buildEditableFields(document: DocumentDetailType) {
+  const template =
+    defaultFieldsByDocumentType[document.document_type ?? "other"] ?? {};
+
+  const extractedFields = Object.fromEntries(
+    (document.extracted_fields ?? []).map((field) => [
+      field.key_field,
+      field.value ?? "",
+    ]),
+  );
+
+  return {
+    ...template,
+    ...extractedFields,
+  };
+}
+
+function hasFilledField(fieldsText: string) {
+  try {
+    const fields = JSON.parse(fieldsText) as Record<string, unknown>;
+
+    return Object.values(fields).some(
+      (value) => String(value ?? "").trim().length > 0,
+    );
+  } catch {
+    return false;
+  }
+}
+
 type DocumentDetailProps = {
   apiKey: string;
   documentId: string;
@@ -29,6 +85,10 @@ export function DocumentDetail({
   const [rejectReason, setRejectReason] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const hasAnyFilledField = hasFilledField(fieldsText);
+  const canApprove =
+  document?.status === "needs_review" && hasAnyFilledField;
+
   async function loadDocument() {
     setErrorMessage(null);
 
@@ -41,14 +101,8 @@ export function DocumentDetail({
       setDocument(documentResponse);
       setEvents(eventResponse);
 
-      const fields = Object.fromEntries(
-        (documentResponse.extracted_fields ?? []).map((field) => [
-          field.key_field,
-          field.value,
-        ]),
-      );
+      setFieldsText(JSON.stringify(buildEditableFields(documentResponse), null, 2));
 
-      setFieldsText(JSON.stringify(fields, null, 2));
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Could not load document",
@@ -74,9 +128,16 @@ export function DocumentDetail({
   }
 
   async function handleApprove() {
-    await approveDocument(apiKey, documentId, reviewerId);
-    await loadDocument();
+  if (!hasAnyFilledField) {
+    setErrorMessage(
+      "Antes de aprobar, llena al menos un campo del documento.",
+    );
+    return;
   }
+
+  await approveDocument(apiKey, documentId, reviewerId);
+  await loadDocument();
+}
 
   async function handleReject() {
     await rejectDocument(apiKey, documentId, reviewerId, rejectReason);
@@ -140,8 +201,18 @@ export function DocumentDetail({
         </button>
       </section>
 
+      {document?.validation_errors?.length ? (
+        <div className="validation-list">
+          {document.validation_errors.map((error) => (
+            <span key={error.id}>
+              {error.key_field}: {error.message}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       <section className="review-actions">
-        <button onClick={handleApprove}>
+        <button onClick={handleApprove} disabled={!canApprove}>
           <Check size={16} />
           Aprobar
         </button>

@@ -94,9 +94,12 @@ export type ExtractedField = {
 
 export type ValidationError = {
   id: string;
-  field_name: string;
-  error_message: string;
+  document_id: string;
+  key_field: string;
+  code: string;
+  message: string;
   created_at: string;
+  resolved_at: string | null;
 };
 
 export type DocumentEvent = {

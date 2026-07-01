@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2, Upload } from "lucide-react";
+import { ArrowLeft, Loader2, Search, Upload } from "lucide-react";
 
 import {
   getBatch,
@@ -30,10 +30,24 @@ export function BatchDetail({
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [documentSearch, setDocumentSearch] = useState("");
 
   const batchDocuments = useMemo(() => {
-    return documents.filter((document) => document.batch_id === batchId);
-  }, [documents, batchId]);
+    const searchValue = documentSearch.trim().toLowerCase();
+
+    return documents.filter((document) => {
+      if (document.batch_id !== batchId) return false;
+
+      if (!searchValue) return true;
+
+      return (
+        document.filename.toLowerCase().includes(searchValue) ||
+        document.id.toLowerCase().includes(searchValue) ||
+        document.status.toLowerCase().includes(searchValue) ||
+        (document.document_type ?? "").toLowerCase().includes(searchValue)
+      );
+    });
+  }, [documents, batchId, documentSearch]);
 
   async function loadBatchDetail() {
     setIsLoading(true);
@@ -162,6 +176,17 @@ export function BatchDetail({
             {isUploading ? "Subiendo..." : "Subir documento"}
           </button>
         </form>
+      </section>
+
+      <section className="toolbar">
+        <label className="search-box">
+          <Search size={16} />
+          <input
+            value={documentSearch}
+            onChange={(event) => setDocumentSearch(event.target.value)}
+            placeholder="Buscar por archivo, ID, estado o tipo"
+          />
+        </label>
       </section>
 
       <section className="table-panel">

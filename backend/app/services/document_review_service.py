@@ -56,7 +56,7 @@ class DocumentReviewService:
             "currency",
             "document_date",
         ],
-        DocumentType.OTHER: [],
+        DocumentType.OTHER: ["description"],
     }
 
     def __init__(self, db: Session):
@@ -105,6 +105,16 @@ class DocumentReviewService:
                 field.key_field: field.value
                 for field in current_fields
             }
+
+            has_any_filled_field = any(
+                value is not None and str(value).strip()
+                for value in fields_by_key.values()
+            )
+
+            if not has_any_filled_field:
+                raise DocumentApprovalBlockedError(
+                    "Document must have at least one reviewed field before approval"
+                )
 
             missing_fields = self._get_missing_fields(
                 organization_id=current_organization.id,
@@ -343,9 +353,15 @@ class DocumentReviewService:
         if document is None:
             raise DocumentNotFoundForReviewError("Document not found")
 
-        if document.status != DocumentStatus.FAILED:
+        retryable_statuses = {
+            DocumentStatus.FAILED,
+            DocumentStatus.EXTRACTING,
+            DocumentStatus.CLASSIFIED,
+        }
+
+        if document.status not in retryable_statuses:
             raise DocumentRetryInvalidStateError(
-                "Only failed documents can be retried"
+                "Documentos failed o atorados en estados de procesamiento pueden regresar a queued."
             )
 
         try:
