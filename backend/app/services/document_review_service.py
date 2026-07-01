@@ -353,9 +353,15 @@ class DocumentReviewService:
         if document is None:
             raise DocumentNotFoundForReviewError("Document not found")
 
-        if document.status != DocumentStatus.FAILED:
+        retryable_statuses = {
+            DocumentStatus.FAILED,
+            DocumentStatus.EXTRACTING,
+            DocumentStatus.CLASSIFIED,
+        }
+
+        if document.status not in retryable_statuses:
             raise DocumentRetryInvalidStateError(
-                "Only failed documents can be retried"
+                "Documentos failed o atorados en estados de procesamiento pueden regresar a queued."
             )
 
         try:

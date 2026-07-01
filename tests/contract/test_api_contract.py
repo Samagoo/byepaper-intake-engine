@@ -592,3 +592,54 @@ def test_upload_with_invalid_mime_type_is_rejected(tmp_path: Path) -> None:
     )
 
     assert response.status_code == 415
+
+def test_retry_document_stuck_in_extracting_requeues_document(tmp_path: Path) -> None:
+    organization = create_test_organization()
+    api_key = create_api_key(organization["id"])
+    batch = create_test_batch(api_key)
+
+    upload_response = upload_text_document(
+        api_key=api_key,
+        batch_id=batch["id"],
+        tmp_path=tmp_path,
+        filename="stuck_extracting.txt",
+        content="Factura total 800 MXN",
+        idempotency_key=f"stuck-{uuid.uuid4()}",
+    )
+
+    assert upload_response.status_code == 201, upload_response.text
+
+    document_id = upload_response.json()["id"]
+
+    import psycopg
+
+    with psycopg.connect(
+        "postgresql://byepaper:byepaper@localhost:5432/byepaper"
+    ) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE documents SET status = 'EXTRACTING' WHERE id = %s",
+                (document_id,),
+            )
+
+    retry_response = requests.post(
+        f"{API_BASE_URL}/documents/{document_id}/retry",
+        headers=auth_headers(api_key),
+        json={"reviewer_id": "pytest-reviewer"},
+        timeout=10,
+    )
+
+    assert retry_response.ok, retry_response.text
+    assert retry_response.json()["status"] == "queued"
+
+    recovered_document = wait_for_document_to_finish(
+        api_key=api_key,
+        document_id=document_id,
+        attempts=20,
+        sleep_seconds=1,
+    )
+
+    assert recovered_document["status"] in {
+        "approved",
+        "needs_review",
+    }
