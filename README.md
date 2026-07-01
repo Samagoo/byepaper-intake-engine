@@ -848,3 +848,114 @@ This repository includes:
 - Contract tests
 - Postman collection
 - README with setup and architecture notes
+
+- Demo: https://drive.google.com/file/d/1dYQAj0_8awsBPO1B-KzvON3cbu4ch55C/view?usp=sharing
+
+## Datos seed / Primer uso
+
+El proyecto no requiere datos seed fijos para empezar.  
+La organización y la API key se crean desde el frontend, Postman o directamente desde la API.
+
+### Opción 1: Crear organización y API key desde el frontend
+
+Levanta el proyecto:
+
+```powershell
+docker compose up --build
+```
+
+Abre el frontend:
+
+```text
+http://localhost:5173
+```
+
+Desde la pantalla inicial puedes:
+
+1. Crear una organización.
+2. Generar una API key.
+3. Usar esa API key para crear batches, subir documentos y revisar resultados.
+
+La API key completa se muestra una sola vez. Después el frontend la guarda localmente para usar el dashboard.
+
+---
+
+### Opción 2: Crear organización y API key desde Postman
+
+El repositorio incluye una colección y un environment de Postman:
+
+```text
+postman/ByePaper.postman_collection.json
+postman/ByePaper.local.postman_environment.json
+```
+
+Importa ambos archivos en Postman y selecciona el environment:
+
+```text
+ByePaper Local
+```
+
+Ejecuta en este orden:
+
+```text
+1. Organizations and API Keys / Create organization
+2. Organizations and API Keys / Create API key
+3. Organizations and API Keys / Get current organization
+```
+
+La colección guarda automáticamente estas variables en el environment:
+
+```text
+organization_id
+api_key
+```
+
+Después puedes continuar con:
+
+```text
+4. Batches / Create batch
+5. Documents / Upload document
+6. Batches / Get batch progress
+7. Documents / Get document detail
+8. Documents / Get document events
+9. Metrics / Get operational metrics
+```
+
+---
+
+### Opción 3: Crear organización y API key con curl
+
+Crear una organización:
+
+```powershell
+curl.exe -X POST http://localhost:8000/api/v1/organizations `
+  -H "Content-Type: application/json" `
+  -d "{\"name\":\"Demo Organization\",\"slug\":\"demo-organization-001\",\"status\":\"active\"}"
+```
+
+La respuesta incluye el `id` de la organización. Usa ese valor para crear la API key:
+
+```powershell
+curl.exe -X POST http://localhost:8000/api/v1/organizations/ORGANIZATION_ID/api-keys
+```
+
+La respuesta devuelve una API key con formato similar a:
+
+```text
+byp_xxxxx_xxxxxxxxxxxxx
+```
+
+Para consumir endpoints protegidos, envía la API key en el header:
+
+```text
+X-API-Key: byp_xxxxx_xxxxxxxxxxxxx
+```
+
+Ejemplo:
+
+```powershell
+curl.exe http://localhost:8000/api/v1/organizations/me `
+  -H "X-API-Key: byp_xxxxx_xxxxxxxxxxxxx"
+```
+
+> Nota: la API key completa solo se devuelve al momento de crearla. En la base de datos se guarda únicamente su hash.
