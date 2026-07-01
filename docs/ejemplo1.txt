@@ -1,0 +1,4 @@
+Factura
+Proveedor: Papeleria Central
+Total 1500 MXN
+Fecha: 2026-06-30

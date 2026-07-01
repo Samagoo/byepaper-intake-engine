@@ -39,7 +39,7 @@ class DocumentProcessingService:
         DocumentType.CONTRACT: ["contract_number", "person_name", "document_date"],
         DocumentType.ID_DOCUMENT: ["person_name", "document_date"],
         DocumentType.BANK_STATEMENT: ["person_name", "total", "currency", "document_date"],
-        DocumentType.OTHER: [],
+        DocumentType.OTHER: ["description"],
     }
 
     def __init__(self, db: Session):

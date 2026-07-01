@@ -5,6 +5,8 @@ from fastapi import HTTPException, Request, status
 from app.adapters.queue.redis_client import get_redis_client
 from app.core.config import get_settings
 
+SAFE_HTTP_METHODS = {"GET", "HEAD", "OPTIONS"}
+
 
 class ApiKeyRateLimiter:
     """
@@ -66,8 +68,12 @@ async def rate_limit_by_api_key(request: Request) -> None:
     Lee X-API-Key directamente del request. La autenticacion real sigue viviendo
     en get_current_organization.
     """
+    if request.method in SAFE_HTTP_METHODS:
+        return
+    
     raw_api_key = request.headers.get("X-API-Key")
 
     rate_limiter.check(
         raw_api_key=raw_api_key,
     )
+    

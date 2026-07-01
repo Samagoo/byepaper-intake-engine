@@ -1,4 +1,6 @@
-import { FileStack, KeyRound } from "lucide-react";
+import { Eye, EyeOff, FileStack, KeyRound, Trash2 } from "lucide-react";
+import { useState } from "react";
+
 
 type AppShellProps = {
   apiKey: string;
@@ -13,6 +15,7 @@ export function AppShell({
   onOpenOnboarding,
   children,
 }: AppShellProps) {
+  const [showApiKey, setShowApiKey] = useState(false);
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -29,12 +32,32 @@ export function AppShell({
             <KeyRound size={16} />
             API Key
           </span>
-          <textarea
-            value={apiKey}
-            onChange={(event) => onApiKeyChange(event.target.value)}
-            placeholder="byp_xxxxx_xxxxx"
-            rows={5}
-          />
+          <div className="api-key-input-row">
+            <input
+              type={showApiKey ? "text" : "password"}
+              value={apiKey}
+              onChange={(event) => onApiKeyChange(event.target.value)}
+              placeholder="byp_xxxxx_xxxxx"
+            />
+
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => setShowApiKey((value) => !value)}
+              title={showApiKey ? "Ocultar API key" : "Mostrar API key"}
+            >
+              {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => onApiKeyChange("")}
+              title="Limpiar API key"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
           <button className="sidebar-button" onClick={onOpenOnboarding}>
             Crear organización
           </button>

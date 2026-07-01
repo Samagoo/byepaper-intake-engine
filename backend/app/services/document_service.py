@@ -248,12 +248,30 @@ class DocumentService:
             )
 
             if idempotency_key is not None:
-                self.idempotency_repository.create(
-                    organization_id=current_organization.id,
-                    idempotency_key=idempotency_key,
-                    request_hash=request_hash,
-                    response_snapshot=response_snapshot,
-                )
+                try:
+                    self.idempotency_repository.create(
+                        organization_id=current_organization.id,
+                        idempotency_key=idempotency_key,
+                        request_hash=request_hash,
+                        response_snapshot=response_snapshot,
+                    )
+                except IntegrityError:
+                    self.db.rollback()
+
+                    existing_record = self.idempotency_repository.get_by_key(
+                        organization_id=current_organization.id,
+                        idempotency_key=idempotency_key,
+                    )
+
+                    if existing_record is not None:
+                        if existing_record.request_hash != request_hash:
+                            raise IdempotencyConflictError(
+                                "Idempotency-Key was already used for a different request"
+                            )
+
+                        return existing_record.response_snapshot
+
+                    raise
 
             self.db.commit()
 

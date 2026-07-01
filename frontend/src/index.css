@@ -582,3 +582,43 @@ td span {
     grid-template-columns: 1fr;
   }
 }
+
+.api-key-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+}
+
+.api-key-input-row input {
+  min-width: 0;
+}
+
+.icon-button {
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #334155;
+  border-radius: 8px;
+  padding: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.validation-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.validation-list span {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
