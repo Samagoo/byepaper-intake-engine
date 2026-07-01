@@ -442,15 +442,18 @@ In another terminal:
 
 ```powershell
 py -m venv .venv_tests
-.\.venv_tests\Scripts\Activate.ps1
+.\.venv_tests\Scripts\activate
 python -m pip install -r requirements-dev.txt
-pytest tests\contract -v
+python -m pip install -r backend/requirements.txt
+pytest tests/contract/test_api_contract.py -q
+pytest tests/unit/test_batch_status_service.py -q
 ```
 
 Expected result:
 
 ```text
-2 passed
+10 passed
+3 passed
 ```
 
 ### Frontend build check
