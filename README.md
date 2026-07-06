@@ -862,6 +862,7 @@ Levanta el proyecto:
 
 ```powershell
 docker compose up --build
+docker compose exec api alembic upgrade head
 ```
 
 Abre el frontend:
